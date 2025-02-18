@@ -358,7 +358,7 @@ def register_onednn_fusion_ops():
 
                     kwargs = {
                         "has_bias": b is not None,
-                        "trans_w": True,
+                        "trans_w": False,
                         "epilogue_creator": (
                             None if attr == "none" else epilogue_creator
                         ),
@@ -423,7 +423,7 @@ def register_onednn_fusion_ops():
 
                     kwargs = {
                         "has_bias": b is not None,
-                        "trans_w": True,
+                        "trans_w": False,
                         "epilogue_creator": epilogue_creator,
                     }
 
