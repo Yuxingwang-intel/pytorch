@@ -1494,9 +1494,6 @@ if torch._C._has_mkldnn:
             device_type = input.meta.get("val").device.type
             mkldnn_device_op = _get_mkldnn_device_op(device_type)
             with graph.inserting_before(linear_node):
-                transpose_weight_node = graph.create_node(
-                    "call_function", aten.permute.default, (weight, (1, 0))
-                )
                 weight_dtype = weight.meta.get("val").dtype
                 is_lp_weight = weight_dtype in (
                     torch.bfloat16,
@@ -1510,8 +1507,26 @@ if torch._C._has_mkldnn:
                 )
                 compute_with_lp = is_lp_weight or use_reduced_f32_for_fp32_weight
                 batch_size = input.meta.get("val").shape[0]
+                weight_node = (
+                    weight
+                    if (
+                        compute_with_lp
+                        or mkldnn._is_mkldnn_acl_supported()
+                        or V.aot_compilation
+                    )
+                    else graph.create_node(
+                        "call_function", aten.permute.default, (weight, (1, 0))
+                    )
+                )
+                # For bfloat16 dynamic shape path, using input size hint to pack weight for a better performance.
+                packed_weight_inputs = (
+                    weight_node,
+                    batch_size.node.shape_env.size_hint(batch_size.node.expr)
+                    if has_free_symbols(batch_size)
+                    else batch_size,
+                )
                 packed_weight_node = mkldnn_device_op.pack_linear_weight(
-                    graph, compute_with_lp, transpose_weight_node, batch_size
+                    graph, compute_with_lp, weight_node, batch_size
                 )
                 packed_linear_node = mkldnn_device_op.pack_linear(
                     graph, compute_with_lp, batch_size, input, packed_weight_node, bias
