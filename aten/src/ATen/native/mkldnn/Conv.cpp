@@ -462,6 +462,7 @@ Tensor mkldnn_convolution_pointwise_binary(
     }
     op_attr.set_post_ops(po);
     auto aprop_kind = ideep::prop_kind::forward_inference;
+<<<<<<< HEAD
 
     if (mkldnn_conv_enabled_fpmath_mode_bf16() && input_t.scalar_type() ==at::kFloat){
       op_attr.set_fpmath_mode(dnnl_fpmath_mode_bf16);
@@ -469,6 +470,8 @@ Tensor mkldnn_convolution_pointwise_binary(
     if (mkldnn_conv_enabled_fpmath_mode_tf32() && input_t.scalar_type() ==at::kFloat){
       op_attr.set_fpmath_mode(dnnl_fpmath_mode_tf32);
     }
+=======
+>>>>>>> 81cc05ee096 (Update (base update))
 
     if (bias.defined()) {
       const ideep::tensor b = itensor_from_tensor(bias);
@@ -607,6 +610,7 @@ Tensor& mkldnn_convolution_pointwise_binary_(
       op_attr = ideep::attr_t::fuse_sum();
     }
     auto aprop_kind = ideep::prop_kind::forward_inference;
+<<<<<<< HEAD
     if (mkldnn_conv_enabled_fpmath_mode_bf16() &&
         input_t.scalar_type() == at::kFloat) {
       op_attr.set_fpmath_mode(dnnl_fpmath_mode_bf16);
@@ -615,6 +619,8 @@ Tensor& mkldnn_convolution_pointwise_binary_(
         input_t.scalar_type() == at::kFloat) {
       op_attr.set_fpmath_mode(dnnl_fpmath_mode_tf32);
     }
+=======
+>>>>>>> 81cc05ee096 (Update (base update))
     _mkldnn_convolution_out(
         input_t,
         weight_t,

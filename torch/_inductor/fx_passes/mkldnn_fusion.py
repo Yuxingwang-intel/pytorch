@@ -49,9 +49,6 @@ if torch._C._has_mkldnn:
     _conv_transpose_args = [Arg() for _ in range(11)]
 
     class MkldnnDeviceOpBase:
-        def get_linear_transpose_weight(self, weight_node):
-            raise NotImplementedError
-
         def pack_conv_weight(
             self,
             graph,
@@ -63,7 +60,7 @@ if torch._C._has_mkldnn:
             raise NotImplementedError
 
         def pack_linear_weight(
-            self, graph, is_lp_weight, transpose_weight_node, batch_size
+            self, graph, is_lp_weight, weight_node, batch_size
         ):
             raise NotImplementedError
 
@@ -73,13 +70,6 @@ if torch._C._has_mkldnn:
             raise NotImplementedError
 
     class CpuMkldnnDeviceOp(MkldnnDeviceOpBase):
-        def get_linear_transpose_weight(self, weight_node):
-            packed_weight_node = weight_node
-            assert packed_weight_node.target == mkldnn._reorder_linear_weight
-            transpose_weight_node = packed_weight_node.args[0]
-            assert transpose_weight_node.target is aten.permute.default
-            return transpose_weight_node
-
         def pack_conv_weight(
             self,
             graph,
@@ -99,11 +89,11 @@ if torch._C._has_mkldnn:
             )
 
         def pack_linear_weight(
-            self, graph, is_lp_weight, transpose_weight_node, batch_size
+            self, graph, is_lp_weight, weight_node, batch_size
         ):
             # For bfloat16 dynamic shape path, using input size hint to pack weight for a better performance.
             packed_weight_inputs = (
-                transpose_weight_node,
+                weight_node,
                 batch_size.node.shape_env.size_hint(batch_size.node.expr)
                 if has_free_symbols(batch_size)
                 else batch_size,
@@ -133,7 +123,7 @@ if torch._C._has_mkldnn:
             self, graph, is_lp_weight, batch_size, input, packed_weight_node, bias
         ):
             packed_linear_inputs: tuple[Any, ...] = (input, packed_weight_node)
-            transpose_weight_node = packed_weight_node.args[0]
+            weight_node = packed_weight_node.args[0]
             if (
                 is_lp_weight
                 or mkldnn._is_mkldnn_acl_supported()
@@ -143,7 +133,7 @@ if torch._C._has_mkldnn:
                 packed_linear_inputs += (bias, "none", [], "")
                 packed_linear_op: Callable[..., Any] = mkldnn._linear_pointwise.default
             else:
-                packed_linear_inputs += (transpose_weight_node, bias, batch_size)
+                packed_linear_inputs += (weight_node, bias, batch_size)
                 packed_linear_op = torch.ops.mkl._mkl_linear
 
             return graph.create_node(
@@ -1100,12 +1090,9 @@ if torch._C._has_mkldnn:
         def is_linear_add_bias(match):
             add_node = match.output_node()
             linear_node = add_node.args[0]
-            device_type = add_node.meta.get("val").device.type
-            mkldnn_device_op = _get_mkldnn_device_op(device_type)
-            transpose_weight_node = mkldnn_device_op.get_linear_transpose_weight(
-                linear_node.args[1]
-            )
-            weight_meta = transpose_weight_node.args[0].meta.get("val")
+            packed_weight_node = linear_node.args[1]
+            assert packed_weight_node.target == mkldnn._reorder_linear_weight
+            weight_meta = packed_weight_node.args[0].meta.get("val")
             bias_node = add_node.args[1]
             if isinstance(bias_node, int):
                 # we only folding bias if it is a constant
