@@ -2096,6 +2096,7 @@ class TestPatternMatcher(TestCase):
         self.assertEqual(result, x * 3)
         self.assertEqual(count, 1)
 
+
 class TestPatternMatcherLogging(LoggingTestCase):
     device_type = GPU_TYPE
 
