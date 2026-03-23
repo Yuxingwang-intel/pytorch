@@ -2595,6 +2595,34 @@ class AOTAutogradCacheTests(InductorTestCase):
 
     @inductor_config.patch("fx_graph_cache", True)
     @functorch_config.patch("enable_autograd_cache", True)
+    def test_pre_grad_passes_keep_gm_identity(self):
+        from torch._inductor.fx_passes.pre_grad import pre_grad_passes
+        import torch.fx as fx
+        class Model(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.linear = torch.nn.Linear(4, 4)
+                self.identity = torch.nn.Identity()
+
+            def forward(self, x):
+                x = self.linear(x)
+                x = self.identity(x)
+                return torch.relu(x)
+
+        x = torch.randn(2, 4)
+        gm = fx.symbolic_trace(Model().eval())
+
+        with inductor_config.patch(
+            pattern_matcher=True,
+            freezing=True,
+        ):
+            with torch.no_grad():
+                gm_after = pre_grad_passes(gm, (x,))
+
+        self.assertTrue(id(gm_after) == id(gm))
+
+    @inductor_config.patch("fx_graph_cache", True)
+    @functorch_config.patch("enable_autograd_cache", True)
     def test_pre_grad_passes_called_on_cache_miss_only(self):
         """
         Verify that pre_grad_passes are called on cache miss but not on cache hit.

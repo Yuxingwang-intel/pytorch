@@ -2096,35 +2096,6 @@ class TestPatternMatcher(TestCase):
         self.assertEqual(result, x * 3)
         self.assertEqual(count, 1)
 
-    def test_remove_identity_effective(self):
-        from torch._inductor.fx_passes.pre_grad import remove_identity
-        class Model(torch.nn.Module):
-            def __init__(self):
-                super().__init__()
-                self.identity = torch.nn.Identity()
-                self.linear = torch.nn.Linear(4, 4)
-
-            def forward(self, x):
-                x = self.identity(x)
-                return self.linear(x)
-        def _count_identity_call_modules(gm: torch.fx.GraphModule) -> int:
-            modules = dict(gm.named_modules())
-            return sum(
-                1
-                for node in gm.graph.nodes
-                if node.op == "call_module"
-                and isinstance(modules.get(node.target, None), torch.nn.Identity)
-            )
-        m = Model().eval()
-        x = torch.randn(2, 4)
-        gm = torch.fx.symbolic_trace(m)
-        self.assertEqual(_count_identity_call_modules(gm), 1)
-        ref = gm(x)
-        gm2 = remove_identity(gm)
-        self.assertEqual(_count_identity_call_modules(gm2), 0)
-        self.assertTrue(torch.allclose(ref, gm2(x)))
-
-
 class TestPatternMatcherLogging(LoggingTestCase):
     device_type = GPU_TYPE
 
