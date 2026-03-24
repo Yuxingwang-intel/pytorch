@@ -2486,7 +2486,10 @@ class AOTAutogradCacheTests(InductorTestCase):
     @functorch_config.patch("enable_autograd_cache", True)
     def test_pre_grad_passes_inplace_cpu(self):
         """
-        `remove_identity` was an out-place operation previously, and it is called for CPU inference inside `pre_grad_passes`. So, it broke the in-place semantics of `pre_grad_passes` for CPU inference. This test ensures `pre_grad_passes` is in-place in this case.
+        `remove_identity` was an out-place operation previously, and it is called
+        for CPU inference inside `pre_grad_passes`. So, it broke the in-place semantics
+        of `pre_grad_passes` for CPU inference. This test ensures `pre_grad_passes` is
+        in-place in this case.
         """
 
         from torch._inductor.fx_passes.pre_grad import pre_grad_passes
