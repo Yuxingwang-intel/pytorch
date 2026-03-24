@@ -2484,11 +2484,14 @@ class AOTAutogradCacheTests(InductorTestCase):
 
     @inductor_config.patch("fx_graph_cache", True)
     @functorch_config.patch("enable_autograd_cache", True)
-    def test_pre_grad_passes_keep_gm_identity(self):
+    def test_cpu_inference_pre_grad_passes_run_inplace(self):
         """
-        Test that pre_grad_passes does not replace the GraphModule object
-        when it is invoked on an AOTAutograd cache miss.
+        Test that, for CPU inference only, pre-grad transformations are applied to
+        the same GraphModule instance used by the subsequent pipeline. Since
+        pre_grad_passes are invoked only on AOTAutograd cache miss, CPU-only
+        passes need to operate in place to ensure the transformations are preserved.
         """
+
         from torch._inductor.fx_passes.pre_grad import pre_grad_passes
 
         class Model(torch.nn.Module):
