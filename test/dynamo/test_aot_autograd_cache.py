@@ -2490,7 +2490,7 @@ class AOTAutogradCacheTests(InductorTestCase):
         when it is invoked on an AOTAutograd cache miss.
         """
         from torch._inductor.fx_passes.pre_grad import pre_grad_passes
-        import torch.fx as fx
+
         class Model(torch.nn.Module):
             def __init__(self):
                 super().__init__()
@@ -2503,7 +2503,7 @@ class AOTAutogradCacheTests(InductorTestCase):
                 return torch.relu(x)
 
         x = torch.randn(2, 4)
-        gm = fx.symbolic_trace(Model().eval())
+        gm = torch.fx.symbolic_trace(Model().eval())
 
         with inductor_config.patch(
             pattern_matcher=True,
