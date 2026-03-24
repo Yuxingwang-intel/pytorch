@@ -2484,12 +2484,9 @@ class AOTAutogradCacheTests(InductorTestCase):
 
     @inductor_config.patch("fx_graph_cache", True)
     @functorch_config.patch("enable_autograd_cache", True)
-    def test_cpu_inference_pre_grad_passes_run_inplace(self):
+    def test_pre_grad_passes_inplace_cpu(self):
         """
-        Test that, for CPU inference only, pre-grad transformations are applied to
-        the same GraphModule instance used by the subsequent pipeline. Since
-        pre_grad_passes are invoked only on AOTAutograd cache miss, CPU-only
-        passes need to operate in place to ensure the transformations are preserved.
+        `remove_identity` was an out-place operation previously, and it is called for CPU inference inside `pre_grad_passes`. So, it broke the in-place semantics of `pre_grad_passes` for CPU inference. This test ensures `pre_grad_passes` is in-place in this case.
         """
 
         from torch._inductor.fx_passes.pre_grad import pre_grad_passes
