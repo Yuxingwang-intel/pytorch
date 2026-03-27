@@ -446,6 +446,7 @@ def remove_identity(gm: torch.fx.GraphModule) -> torch.fx.GraphModule:
         gm.recompile()
     return gm
 
+
 def fuse_conv_bn(gm: torch.fx.GraphModule, inplace=False) -> torch.fx.GraphModule:
     """
     Fuses Convolution/BN layers for inference purposes.
