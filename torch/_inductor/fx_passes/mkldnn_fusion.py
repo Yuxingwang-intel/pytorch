@@ -109,22 +109,7 @@ if torch._C._has_mkldnn:
                 else batch_size,
             )
 
-            # MKL packed matrix can't be copied to a different address because the internal implementation
-            # depends on the alignment of internally-stored metadata.
-            # In aot mode, we need to firstly save the packed weight, when loading it,
-            # it will be in a different address which doesn't work.
-            # Disable MKL prepack linear in AOT mode.
-            # Disable MKL prepack linear when batch_size has free symbols.
-            packed_weight_op = (
-                mkldnn._reorder_linear_weight
-                if (
-                    is_lp_weight
-                    or mkldnn._is_mkldnn_acl_supported()
-                    or V.aot_compilation
-                    or has_free_symbols(batch_size)
-                )
-                else torch.ops.mkl._mkl_reorder_linear_weight
-            )
+            packed_weight_op = mkldnn._reorder_linear_weight
             return graph.create_node(
                 "call_function", packed_weight_op, args=packed_weight_inputs
             )
@@ -133,19 +118,7 @@ if torch._C._has_mkldnn:
             self, graph, is_lp_weight, batch_size, input, packed_weight_node, bias
         ):
             packed_linear_inputs: tuple[Any, ...] = (input, packed_weight_node)
-            transpose_weight_node = packed_weight_node.args[0]
-            if (
-                is_lp_weight
-                or mkldnn._is_mkldnn_acl_supported()
-                or V.aot_compilation
-                or has_free_symbols(batch_size)
-            ):
-                packed_linear_inputs += (bias, "none", [], "")
-                packed_linear_op: Callable[..., Any] = mkldnn._linear_pointwise.default
-            else:
-                packed_linear_inputs += (transpose_weight_node, bias, batch_size)
-                packed_linear_op = torch.ops.mkl._mkl_linear
-
+            packed_linear_inputs += (bias, "none", [], "")
             return graph.create_node(
                 "call_function", packed_linear_op, packed_linear_inputs
             )
@@ -1278,21 +1251,24 @@ if torch._C._has_mkldnn:
             torch.bfloat16,
             torch.float16,
         )
-        reduced_f32_matmul_enabled = torch.backends.mkldnn.matmul.fp32_precision in [  # type: ignore[attr-defined]
-            "bf16",
-            "tf32",
-        ]
-        use_reduced_f32_for_fp32_weight = (
-            reduced_f32_matmul_enabled and weight_meta_value.dtype == torch.float32
-        )
-        compute_with_lp = is_lp_weight or use_reduced_f32_for_fp32_weight
-        # on x86, for fp32, mkl should be enabled.
-        # on aarch64, use mkldnn op for fp32 as well if acl is enabled
-        if (
-            not compute_with_lp
-            and not mkldnn._is_mkldnn_acl_supported()
-            and not torch._C.has_mkl
-        ):
+        # reduced_f32_matmul_enabled = torch.backends.mkldnn.matmul.fp32_precision in [  # type: ignore[attr-defined]
+        #     "bf16",
+        #     "tf32",
+        # ]
+        # use_reduced_f32_for_fp32_weight = (
+        #     reduced_f32_matmul_enabled and weight_meta_value.dtype == torch.float32
+        # )
+        # compute_with_lp = is_lp_weight or use_reduced_f32_for_fp32_weight
+        # # on x86, for fp32, mkl should be enabled.
+        # # on aarch64, use mkldnn op for fp32 as well if acl is enabled
+        # if (
+        #     not compute_with_lp
+        #     and not mkldnn._is_mkldnn_acl_supported()
+        #     and not torch._C.has_mkl
+        # ):
+        #     return False
+        compute_with_lp = is_lp_weight or weight_meta_value.dtype == torch.float32
+        if not compute_with_lp and not mkldnn._is_mkldnn_acl_supported():
             return False
         for meta_value in [input_meta_value, weight_meta_value]:
             if (
@@ -1305,7 +1281,7 @@ if torch._C._has_mkldnn:
             bias_meta_value = linear_node.args[0].meta.get("val")
             if (
                 bias_meta_value is None
-                or meta_value.device.type != "cpu"
+                or bias_meta_value.device.type != "cpu"
                 or bias_meta_value.dim() != 1
                 or bias_meta_value.size(0) != weight_meta_value.size(1)
             ):
@@ -1549,8 +1525,6 @@ if torch._C._has_mkldnn:
             mkldnn._reorder_linear_weight,
             mkldnn._reorder_mkldnn_rnn_layer_weight,
         ]
-        if torch._C.has_mkl:
-            packed_weight_ops.append(torch.ops.mkl._mkl_reorder_linear_weight)
 
         for node in gm.graph.nodes:
             if node.target in packed_weight_ops and len(node.args[0].users) > 1:

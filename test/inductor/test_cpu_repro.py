@@ -350,9 +350,8 @@ class CPUReproTests(TestCase):
         torch.testing.assert_close(w_comp.grad, grad_w_eager)
 
     @config.patch(freezing=True)
-    @unittest.skipIf(not TEST_MKL, "Test requires MKL")
     @patch("torch.cuda.is_available", lambda: False)
-    def test_mkl_linear(self):
+    def test_onednn_fp32_linear(self):
         dtypes = [torch.float32]
         options = itertools.product([[2, 3, 10]], [2], [True, False], dtypes)
         for input_shape, out_dim, bias, dtype in options:

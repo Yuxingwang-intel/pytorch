@@ -889,9 +889,7 @@ class TestPatternMatcher(TestPatternMatcherBase):
                     v,
                 )
                 self.assertIn(
-                    "torch.ops.mkldnn._linear_pointwise.default"
-                    if autocast_enabled
-                    else "torch.ops.mkl._mkl_linear.default",
+                    "torch.ops.mkldnn._linear_pointwise.default",
                     source_code,
                 )
                 torch.testing.assert_close(actual, expected, atol=1e-2, rtol=1e-2)
@@ -1582,11 +1580,7 @@ class TestPatternMatcher(TestPatternMatcherBase):
         if torch.ops.mkldnn._is_mkldnn_bf16_supported():
             dtypes.append(torch.bfloat16)
         for dtype in dtypes:
-            linear_op = (
-                "mkl._mkl_linear"
-                if dtype == torch.float32
-                else "mkldnn._linear_pointwise"
-            )
+            linear_op = "mkldnn._linear_pointwise"
             for beta, alpha in zip([1.0, 0.1, 0.0], [1.0, 0.1, 1.0]):
                 weight = torch.nn.Parameter(torch.randn(64, 64, dtype=dtype))
                 bias = torch.nn.Parameter(torch.randn(64, dtype=dtype))

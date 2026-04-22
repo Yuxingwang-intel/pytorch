@@ -264,7 +264,7 @@ if RUN_CPU:
         BaseTest("test_max_pool2d6_dilation_1"),
         BaseTest("test_max_pool2d6_dilation_2"),
         BaseTest(
-            "test_mkl_linear", "", test_cpu_repro.CPUReproTests(), condition=TEST_MKL
+            "test_onednn_fp32_linear", "", test_cpu_repro.CPUReproTests(), condition=test_onednn_fp32_linear
         ),
         BaseTest("test_mm_views"),
         BaseTest("test_multihead_attention", "cpu", test_cpu_repro.CPUReproTests()),
