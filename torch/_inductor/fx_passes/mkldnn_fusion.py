@@ -1251,22 +1251,6 @@ if torch._C._has_mkldnn:
             torch.bfloat16,
             torch.float16,
         )
-        # reduced_f32_matmul_enabled = torch.backends.mkldnn.matmul.fp32_precision in [  # type: ignore[attr-defined]
-        #     "bf16",
-        #     "tf32",
-        # ]
-        # use_reduced_f32_for_fp32_weight = (
-        #     reduced_f32_matmul_enabled and weight_meta_value.dtype == torch.float32
-        # )
-        # compute_with_lp = is_lp_weight or use_reduced_f32_for_fp32_weight
-        # # on x86, for fp32, mkl should be enabled.
-        # # on aarch64, use mkldnn op for fp32 as well if acl is enabled
-        # if (
-        #     not compute_with_lp
-        #     and not mkldnn._is_mkldnn_acl_supported()
-        #     and not torch._C.has_mkl
-        # ):
-        #     return False
         compute_with_lp = is_lp_weight or weight_meta_value.dtype == torch.float32
         if not compute_with_lp and not mkldnn._is_mkldnn_acl_supported():
             return False
